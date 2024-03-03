@@ -1,4 +1,6 @@
 'use server';
+import { signIn } from '@/auth';
+import { AuthError } from 'next-auth';
 import { z } from 'zod';
 import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
@@ -48,7 +50,7 @@ export async function createInvoice(prevState: State,formData: FormData) {
   `;
     } catch (error) {
         return {
-            message: 'Database Error: Failed to Create Invoice.',
+            message: 'Database Error: Failed to Create Invoice.' + error
         };
     }
     revalidatePath('/dashboard/invoices');
@@ -77,7 +79,7 @@ export async function updateInvoice(id: string,prevState: State, formData: FormD
         WHERE id = ${id}
       `;
     }catch(error){
-        return { message: 'Database Error: Failed to Update Invoice.' };
+        return { message: 'Database Error: Failed to Update Invoice.' + error };
     }
     revalidatePath('/dashboard/invoices');
     redirect('/dashboard/invoices');
@@ -87,7 +89,23 @@ export async function deleteInvoice(id: string) {
     try{
     await sql`DELETE FROM invoices WHERE id = ${id}`;
     }catch(error){
-        return { message: 'Database Error: Failed to Delete Invoice.' };
+        return { message: 'Database Error: Failed to Delete Invoice.'+ error };
     }
     revalidatePath('/dashboard/invoices');
+}
+
+export async function authenticate(preState:string|undefined, formData:FormData){
+  try{
+    await signIn('credentials', formData);
+  }catch(error){
+    if(error instanceof AuthError){
+      switch(error.type){
+        case 'CredentialsSignin':
+          return 'Invalid credentials.';
+          defualt:
+          return 'Something went wrong.';
+      }
+    }
+    throw error;
+  }
 }
